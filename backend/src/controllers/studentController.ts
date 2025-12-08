@@ -30,22 +30,37 @@ export const registerStudent = async (req: Request, res: Response) => {
 };
 
 // Get all students of a parent
+// src/controllers/studentController.ts
 export const getMyChildren = async (req: Request, res: Response) => {
   try {
     const { parentId } = req.params;
-
-    if (!parentId) {
-      return res.status(400).json({ message: "Parent ID is required" });
-    }
+    if (!parentId) return res.status(400).json({ message: "Parent ID required" });
 
     const parentObjectId = new mongoose.Types.ObjectId(parentId);
-    const students = await Student.find({ parentId: { $eq: parentObjectId } });
 
-    res.status(200).json({ students });
+    const students = await Student.find({ parentId: parentObjectId });
+
+    // ✅ Include last call info
+    const studentsWithLastCall = await Promise.all(
+      students.map(async (student) => {
+        const lastCall = await Call.findOne({
+          studentId: student._id,
+          parentId: parentObjectId,
+        }).sort({ calledAt: -1 }); // latest call
+
+        return {
+          ...student.toObject(),
+          lastCallAt: lastCall?.calledAt || null, // frontend will use this
+        };
+      })
+    );
+
+    res.status(200).json({ students: studentsWithLastCall });
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
 };
+
 
 // Parent calls a child
 export const callChild = async (req: Request, res: Response) => {
