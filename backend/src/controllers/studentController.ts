@@ -59,27 +59,33 @@ export const callChild = async (req: Request, res: Response) => {
     const studentObjectId = new mongoose.Types.ObjectId(studentId);
     const parentObjectId = new mongoose.Types.ObjectId(parentId);
 
-    // ✅ Check if this parent already has an active call
     const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // ✅ Check if this student has already been called today by this parent
     const existingCall = await Call.findOne({
       parentId: parentObjectId,
-      pickedUp: false,
-      expiresAt: { $gt: now },
+      studentId: studentObjectId,
+      calledAt: { $gte: startOfDay, $lte: endOfDay },
     });
 
     if (existingCall) {
-      return res.status(400).json({ message: "You already have an active call" });
+      return res.status(400).json({ message: "You have already called this child today" });
     }
 
     // ✅ Create new call
-    const calledAt = new Date();
-    const expiresAt = new Date(calledAt.getTime() + 10 * 60 * 1000); // 10 min later
+    const calledAt = now;
+    const expiresAt = new Date(calledAt.getTime() + 10 * 60 * 1000); // 10 min
 
     const newCall = new Call({
       studentId: studentObjectId,
       parentId: parentObjectId,
       calledAt,
       expiresAt,
+      pickedUp: false,
     });
 
     await newCall.save();
@@ -89,6 +95,7 @@ export const callChild = async (req: Request, res: Response) => {
     res.status(500).json({ message: (error as Error).message });
   }
 };
+
 
 
 // Get all active calls
@@ -108,26 +115,5 @@ export const getChildCalls = async (req: Request, res: Response) => {
   }
 };
 // Mark call as picked up
-export const pickUpCall = async (req: Request, res: Response) => {
-  try {
-    const { callId } = req.body;
-
-    if (!callId) {
-      return res.status(400).json({ message: "Call ID is required" });
-    }
-
-    const call = await Call.findById(callId);
-    if (!call) {
-      return res.status(404).json({ message: "Call not found" });
-    }
-
-    call.pickedUp = true;
-    await call.save();
-
-    res.status(200).json({ message: "Call picked up successfully" });
-  } catch (error) {
-    res.status(500).json({ message: (error as Error).message });
-  }
-};
 
 
