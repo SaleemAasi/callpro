@@ -132,3 +132,35 @@ export const getChildCalls = async (req: Request, res: Response) => {
 // Mark call as picked up
 
 
+// Mark call as picked up
+export const pickupCall = async (req: Request, res: Response) => {
+  try {
+    const { callId } = req.body;
+
+    if (!callId) {
+      return res.status(400).json({ message: "callId is required" });
+    }
+
+    const call = await Call.findById(callId);
+    if (!call) {
+      return res.status(404).json({ message: "Call not found" });
+    }
+
+    call.pickedUp = true;
+    await call.save();
+
+    return res.status(200).json({ message: "Pickup successful" });
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// Reset all calls (practice only)
+export const resetCalls = async (req: Request, res: Response) => {
+  try {
+    await Call.deleteMany({}); // delete all call records
+    res.status(200).json({ message: "All calls have been reset for practice." });
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
